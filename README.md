@@ -1,11 +1,4 @@
-# InputRedirectionClient-Qt
+# InputRedirectionClient-Qt-keyboard
 Input redirection client for the 3DS using QtGamepad
 
-Supported platforms:
-
-* Windows (via xinput, if you don't have a Xbox controller you should use x360ce)
-* Linux (via evdev)
-* OSX
-* maybe others?
-
-If you have multiple controllers connected at the same time, this software will combine their inputs.
+A fork of gbrown5's extended edition of InputRedirectionClient-Qt but with keybinds for the inputs, allowing users to use their 3ds via a keyboard.
