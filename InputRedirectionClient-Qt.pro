@@ -25,6 +25,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += main.cpp \
     global.cpp \
+    mainwidget.cpp \
     gpmanager.cpp \
     touchscreen.cpp \
     configwindow.cpp \

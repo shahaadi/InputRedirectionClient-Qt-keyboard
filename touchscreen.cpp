@@ -1,6 +1,55 @@
 #include "touchscreen.h"
 #include "global.h"
 #include <QMenu>
+#include "configwindow.h" // NEW: Include the header for the ConfigWindow class
+
+// --- Keyboard Event Handlers for this window ---
+
+void TouchScreen::keyPressEvent(QKeyEvent *event) {
+    // Don't process game input if a config window is open
+    if (settingsConfig->isVisible() || gpConfigurator->isVisible()) {
+        QWidget::keyPressEvent(event);
+        return;
+    }
+
+    if (!event->isAutoRepeat()) {
+        pressedKeys.insert(event->key()); //
+
+        // Handle special interface buttons
+        if (event->key() == keyHome) interfaceButtons |= 1;
+        if (event->key() == keyPower) interfaceButtons |= 2;
+        if (event->key() == keyPowerLong) interfaceButtons |= 4;
+
+        // Handle touchscreen shortcuts
+        for (const auto& curShort : listShortcuts) {
+            if (curShort.button == event->key()) {
+                touchScreenPressed = true;
+                touchScreenPosition = curShort.pos * tsRatio;
+            }
+        }
+    }
+}
+
+void TouchScreen::keyReleaseEvent(QKeyEvent *event) {
+    if (!event->isAutoRepeat()) {
+        pressedKeys.remove(event->key()); //
+
+        // Handle special interface buttons
+        if (event->key() == keyHome) interfaceButtons &= ~1;
+        if (event->key() == keyPower) interfaceButtons &= ~2;
+        if (event->key() == keyPowerLong) interfaceButtons &= ~4;
+
+        // Handle touchscreen shortcuts
+        for (const auto& curShort : listShortcuts) {
+            if (curShort.button == event->key()) {
+                touchScreenPressed = false;
+            }
+        }
+    }
+}
+
+
+// --- Original TouchScreen Class Implementation ---
 
 void TouchScreen::setTouchScreenPressed(bool b)
 {
@@ -27,6 +76,9 @@ TouchScreen::TouchScreen(QWidget *parent) : QWidget(parent)
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinimizeButtonHint);
     this->setWindowTitle(tr("InputRedirectionClient-Qt - Touch screen"));
     this->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    // This is crucial: allows the window to receive keyboard focus when clicked
+    this->setFocusPolicy(Qt::StrongFocus);
 
     connect(this, SIGNAL(customContextMenuRequested(const QPoint &)),
             this, SLOT(ShowContextMenu(const QPoint&)));
@@ -177,47 +229,41 @@ void TouchScreen::updatePixmap(void)
     {
         newPic = QPixmap(TOUCH_SCREEN_WIDTH, TOUCH_SCREEN_HEIGHT);
         newPic.fill(Qt::transparent);
+    } else {
+        bgLabel->setPixmap(newPic.scaled(this->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 }
 
 
 void TouchScreen::paintEvent(QPaintEvent* e)
 {
+    QPainter painter(this);
     QString strPic = settings.value("tsBackgroundImage", "").toString();
-    QPixmap newPic(strPic);
 
-    if (newPic.isNull())
-    {
-        newPic = QPixmap(TOUCH_SCREEN_WIDTH, TOUCH_SCREEN_HEIGHT);
-        newPic.fill(Qt::transparent);
+    if (!strPic.isEmpty()) {
+        QPixmap bg(strPic);
+        painter.drawPixmap(this->rect(), bg);
+    } else {
+        painter.fillRect(this->rect(), Qt::black);
     }
 
+    // Draw shortcut ellipses
+    for (const auto& curShort : listShortcuts) {
+        painter.setBrush(QBrush(curShort.color));
+        painter.setPen(Qt::NoPen);
 
-    QPainter painter;
-    painter.begin(&newPic);
-    painter.setBrush(QBrush(Qt::black));
-    painter.setRenderHint(QPainter::Antialiasing, true);
-
-     for (unsigned i=0; i<listShortcuts.size(); ++i)
-     {
-        ShortCut curShort = listShortcuts[i];
-
-             painter.setBrush(QBrush(curShort.color));
-             painter.drawEllipse(TOUCH_SCREEN_WIDTH*((this->height()*curShort.pos.x())/TOUCH_SCREEN_HEIGHT)/this->width(),
-                                 TOUCH_SCREEN_HEIGHT*((this->width()*curShort.pos.y())/TOUCH_SCREEN_WIDTH)/this->height(),
-                                 (3*this->width())/TOUCH_SCREEN_WIDTH,
-                                 (3*this->height())/TOUCH_SCREEN_HEIGHT);
-
+        // Scale the position from 3DS coordinates to current window coordinates
+        double scaleX = (double)this->width() / TOUCH_SCREEN_WIDTH;
+        double scaleY = (double)this->height() / TOUCH_SCREEN_HEIGHT;
+        QPointF center(curShort.pos.x() * scaleX, curShort.pos.y() * scaleY);
+        painter.drawEllipse(center, 5, 5);
     }
 
-     bgLabel->setPixmap(newPic);
-     bgLabel->show();
-     e->accept();
+    QWidget::paintEvent(e);
 }
 
 void TouchScreen::clearImage(void)
 {
     settings.setValue("tsBackgroundImage", "");
-    updatePixmap();
+    update(); // Use update() to trigger a repaint
 }
-

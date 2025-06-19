@@ -2,6 +2,7 @@
 #include "gpmanager.h"
 #include "tsshortcut.h"
 #include <QPainter>
+#include <QKeyEvent> // Added for keyboard events
 
 #ifndef TOUCHSCREEN_H
 #define TOUCHSCREEN_H
@@ -17,16 +18,23 @@ private:
     QLabel *bgLabel;
     TsShortcut tsShortcutGui;
 
+protected:
+    // Added keyboard event handlers
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
+
+    // Added override specifier for consistency
+    void resizeEvent(QResizeEvent* e) override;
+    void mousePressEvent(QMouseEvent *ev) override;
+    void mouseMoveEvent(QMouseEvent *ev) override;
+    void mouseReleaseEvent(QMouseEvent *ev) override;
+    void closeEvent(QCloseEvent *ev) override;
+    void paintEvent(QPaintEvent* e) override;
+
 public:
     TouchScreen(QWidget *parent = nullptr);
 
     bool ellipNeedDraw;
-
-    void resizeEvent(QResizeEvent* e);
-    void mousePressEvent(QMouseEvent *ev);
-    void mouseMoveEvent(QMouseEvent *ev);
-    void mouseReleaseEvent(QMouseEvent *ev);
-    void closeEvent(QCloseEvent *ev);
 
     QPoint getTouchScreenPosition();
     QSize getTouchScreenSize();
@@ -34,11 +42,12 @@ public:
     void setTouchScreenPressed(bool b);
     void updatePixmap(void);
     void clearImage(void);
-    void paintEvent(QPaintEvent* e);
 
    ~TouchScreen(void)
     {
-        qDebug() << "DECON";
+        // The original code had a qDebug here which requires <QDebug>
+        // It's commented out to avoid needing another include.
+        // qDebug() << "DECON";
         tsShortcutGui.close();
     }
 };

@@ -21,9 +21,13 @@
 #include <QSlider>
 #include <QThread>
 #include <QMetaObject>
+#include <QSet>
 #include "gpconfigurator.h"
 #include "settings.h"
 #include "shortcut.h"
+
+// Forward-declare the ConfigWindow class to avoid circular dependencies
+class ConfigWindow;
 
 #define TOUCH_SCREEN_WIDTH  320
 #define TOUCH_SCREEN_HEIGHT 240
@@ -45,46 +49,40 @@ struct TouchButton
     int x, y;
 };
 
-
 extern std::vector<ShortCut> listShortcuts;
-QGamepadManager::GamepadButton variantToButton(QVariant variant);
+
 ShortCut variantToShortCut(QVariant variant);
 
 extern int id, fid;
-
 extern QSettings settings;
 
 extern QGamepadManager::GamepadButtons buttons;
 extern u32 interfaceButtons;
 
 extern int yAxisMultiplier, yAxisMultiplierCpp;
-
 extern QString ipAddress;
 extern bool timerEnabled;
 
 extern GamepadConfigurator *gpConfigurator;
+extern ConfigWindow *settingsConfig; // NEW: Made this pointer global
 
 extern bool touchScreenPressed;
 extern QSize touchScreenSize;
 extern QPoint touchScreenPosition;
 extern double tsRatio;
 
-extern QGamepadManager::GamepadButton homeButton;
-extern QGamepadManager::GamepadButton powerButton;
-extern QGamepadManager::GamepadButton powerLongButton;
+// --- Keyboard mapping variables ---
+extern int keyA, keyB, keyX, keyY;
+extern int keyUp, keyDown, keyLeft, keyRight;
+extern int keyL, keyR, keyZL, keyZR;
+extern int keyStart, keySelect;
+extern int keyHome, keyPower, keyPowerLong;
+extern QSet<int> pressedKeys;
 
-extern QGamepadManager::GamepadButton touchButton1;
-extern QGamepadManager::GamepadButton touchButton2;
-extern QGamepadManager::GamepadButton touchButton3;
-extern QGamepadManager::GamepadButton touchButton4;
+void loadKeysFromSettingsIntoGlobals();
+
 
 extern TouchButton tbOne, tbTwo, tbThree, tbFour;
-
-extern QGamepadManager::GamepadButton hidButtonsAB[2];
-extern QGamepadManager::GamepadButton hidButtonsMiddle[8];
-extern QGamepadManager::GamepadButton hidButtonsXY[2];
-extern QGamepadManager::GamepadButton irButtons[2];
-
 
 struct MyAxis
 {
@@ -109,10 +107,7 @@ class Worker : public QObject {
         previousLeftAxis.x = leftAxis.x;
         previousLeftAxis.y = leftAxis.y;
     }
-    ~Worker()
-    {
-
-    }
+    ~Worker() {}
 
  public slots:
     void sendFrame();
@@ -125,7 +120,6 @@ class Worker : public QObject {
     MyAxis leftAxis;
     MyAxis rightAxis;
     MyAxis previousLeftAxis;
-
 };
 
 extern Worker worker;

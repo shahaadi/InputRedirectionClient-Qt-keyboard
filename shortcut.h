@@ -3,17 +3,17 @@
 #include <QMetaType>
 #include <QDataStream>
 #include <QColor>
-#include <QGamepadManager>
 #include <QPoint>
-struct ShortCut
 
+struct ShortCut
 {
     QString name;
-    QGamepadManager::GamepadButton button;
+    int button; // Changed from QGamepadManager::GamepadButton to int
     QPoint pos;
     QColor color;
 
-};Q_DECLARE_METATYPE(ShortCut)
+};
+Q_DECLARE_METATYPE(ShortCut)
 
 extern QDataStream &operator<<(QDataStream &out, const ShortCut &obj);
 extern QDataStream &operator>>(QDataStream &in, ShortCut &obj);

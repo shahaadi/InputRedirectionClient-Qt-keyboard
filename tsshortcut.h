@@ -7,28 +7,44 @@
 #include <QMessageBox>
 #include <QComboBox>
 #include <QColorDialog>
+#include <QKeyEvent>
+#include <QKeySequence>
 
 class TsShortcut : public QWidget
 {
+    Q_OBJECT
+
 private:
     QString wTitle;
     QVBoxLayout  *layout;
-    QFormLayout  *formLayout;
     QListWidget    *lstWidget;
     QLabel       *lblDirections;
     QPushButton  *btnColorDialog, *btnCreateShort,
-                 *btnDelShort, *btnHelp, *btnPressNow;
+                 *btnDelShort, *btnHelp, *btnPressNow, *btnSetKey;
     QLineEdit* txtShortName;
     QPoint curPos;
-    QComboBox* cboxBtns;
     QColor curColor;
 
+    QLabel* lblMappedKey;
+    int mappedKeyForNewShortcut = 0;
+    bool isWaitingForKey = false;
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override {
+        if (isWaitingForKey) {
+            mappedKeyForNewShortcut = event->key();
+            lblMappedKey->setText(QKeySequence(mappedKeyForNewShortcut).toString());
+            isWaitingForKey = false;
+            lblDirections->setText("Enter a name for the new shortcut.");
+        } else {
+            QWidget::keyPressEvent(event);
+        }
+    }
 
 public:
     TsShortcut(QWidget *parent = nullptr) : QWidget(parent)
     {
         layout = new QVBoxLayout(this);
-        formLayout= new QFormLayout(this);
 
         lblDirections = new QLabel(this);
         lstWidget = new QListWidget(this);
@@ -38,21 +54,27 @@ public:
         btnDelShort = new QPushButton(this);
         btnHelp = new QPushButton(this);
         txtShortName = new QLineEdit(this);
-        cboxBtns = populateItems();
+        btnSetKey = new QPushButton("Set Key", this);
+        lblMappedKey = new QLabel("None", this);
 
-        lblDirections->setText("Select a shortcut, then press a button to map it.");
+        lblDirections->setText("Right-click the touchscreen to set a location.");
         btnColorDialog->setText("Choose &Color");
         btnPressNow->setText("Press Selected &Shortcut");
         btnCreateShort->setText("&Create");
         btnDelShort->setText("&Delete");
         btnHelp->setText("&Help");
+        txtShortName->setPlaceholderText("Enter shortcut name...");
+
 
         layout->addWidget(lblDirections);
         layout->addWidget(lstWidget);
-        layout->addWidget(txtShortName);
-        layout->addWidget(cboxBtns);
 
-        layout->addWidget(btnColorDialog);
+        QFormLayout* form = new QFormLayout();
+        form->addRow("Name:", txtShortName);
+        form->addRow(btnSetKey, lblMappedKey);
+        form->addRow("Color:", btnColorDialog);
+        layout->addLayout(form);
+
         layout->addWidget(btnCreateShort);
         layout->addSpacing(10);
         layout->addWidget(btnPressNow);
@@ -63,55 +85,52 @@ public:
         this->setWindowFlags(Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
         this->setVisible(false);
 
-        connect(btnColorDialog, &QPushButton::released, this,
-                 [this](void)
-        {
+        connect(btnSetKey, &QPushButton::clicked, this, [this](){
+            isWaitingForKey = true;
+            this->setFocus();
+            lblDirections->setText("Press any key to map to this shortcut...");
+        });
+
+        connect(btnColorDialog, &QPushButton::released, this, [this]() {
             QColor color = QColorDialog::getColor(Qt::yellow, this );
                 if( color.isValid() )
                 {
                     curColor = color;
                     QString qss = QString("background-color: %1").arg(color.name());
                     btnColorDialog->setStyleSheet(qss);
-
                 }
          });
 
-        connect(btnCreateShort, &QPushButton::released, this,
-                 [this](void)
-        {
-            ShortCut newShortCut;
+        connect(btnCreateShort, &QPushButton::released, this, [this]() {
             QString newShortName = txtShortName->text();
-
-            if(newShortName != "")
-            {
-                newShortCut.name = newShortName;
-
-                newShortCut.button =variantToButton(cboxBtns->currentData());
-                newShortCut.pos = curPos;
-                newShortCut.color = curColor;
-
-                if(!curColor.isValid())
-                {
-                    newShortCut.color = Qt::blue;
-                }
-
-                lstWidget->addItem(newShortName);
-                listShortcuts.push_back(newShortCut);
-                txtShortName->clear();
-                btnColorDialog->setStyleSheet("");
-                curColor = nullptr;
-             }
-            else
-            {
-                QMessageBox *msgBox = new QMessageBox(0);
-                msgBox->setInformativeText(tr("Cannot create new shortcut without a name."));
-                msgBox->show();
+            if(newShortName.isEmpty()) {
+                QMessageBox::warning(this, "Error", "Cannot create a shortcut without a name.");
+                return;
             }
+            if(mappedKeyForNewShortcut == 0) {
+                QMessageBox::warning(this, "Error", "No key has been set for this shortcut.");
+                return;
+            }
+
+            ShortCut newShortCut;
+            newShortCut.name = newShortName;
+            newShortCut.button = mappedKeyForNewShortcut;
+            newShortCut.pos = curPos;
+            newShortCut.color = curColor.isValid() ? curColor : Qt::blue;
+
+            lstWidget->addItem(newShortName);
+            listShortcuts.push_back(newShortCut);
+
+            // Reset for next shortcut
+            txtShortName->clear();
+            btnColorDialog->setStyleSheet("");
+            curColor = nullptr;
+            mappedKeyForNewShortcut = 0;
+            lblMappedKey->setText("None");
+            lblDirections->setText("Shortcut created successfully.");
          });
 
-        connect(btnDelShort, &QPushButton::released, this,
-                 [this](void)
-        {
+        connect(btnDelShort, &QPushButton::released, this, [this]() {
             if(lstWidget->selectedItems().size() != 0)
             {
               listShortcuts.erase(listShortcuts.begin()+(lstWidget->currentRow()));
@@ -119,41 +138,30 @@ public:
             }
          });
 
-        connect(btnPressNow, &QPushButton::pressed, this,
-                 [this](void)
-        {
+        connect(btnPressNow, &QPushButton::pressed, this, [this]() {
             if(lstWidget->selectedItems().size() != 0)
             {
                touchScreenPressed = true;
                touchScreenPosition = listShortcuts[lstWidget->currentRow()].pos*tsRatio;
             }
-
          });
 
-         connect(btnPressNow, &QPushButton::released, this,
-                  [this](void)
-         {
+         connect(btnPressNow, &QPushButton::released, []() {
                 touchScreenPressed = false;
           });
 
 
-        connect(btnHelp, &QPushButton::released, this,
-                 [this](void)
-        {
+        connect(btnHelp, &QPushButton::released, this, []() {
             QMessageBox *msgBox = new QMessageBox(0);
-
-            msgBox->setText("Map Touchpad to Button");
-            msgBox->setInformativeText(tr("1. Right-click touchpad in the position you want then open this menu.\n\
-                                           2. Type a name for your shortcut in the textbox.\n\
-                                           3. Choose a button on the gamepad to map this point to.\n\
-                                           4. Choose a color for your shortcut, (this will the circle's color\
-                                              on the touchpad window\
-                                           5. Press create, then close this window"));
+            msgBox->setText("How to Create a Touchscreen Shortcut");
+            msgBox->setInformativeText(tr("1. Right-click the position on the touchscreen window.\n"
+                                          "2. Open this menu.\n"
+                                          "3. Type a name for your shortcut.\n"
+                                          "4. Click 'Set Key' and press the keyboard key you want to trigger this shortcut.\n"
+                                          "5. Choose a color for the shortcut's circle on the touchpad.\n"
+                                          "6. Press 'Create'."));
             msgBox->show();
-
          });
-
-
     }
 
     void setCurrentPos(QPoint pos)
@@ -163,49 +171,21 @@ public:
 
     void updateTitleText()
     {
-        wTitle = QString("Current X: %1 Y: %2").arg(QString::number(curPos.x())).arg(QString::number(curPos.y()));
+        wTitle = QString("New Shortcut at X: %1 Y: %2").arg(QString::number(curPos.x())).arg(QString::number(curPos.y()));
         this->setWindowTitle(wTitle);
     }
 
-    void showEvent(QShowEvent * event)
+    void showEvent(QShowEvent * event) override
     {
         lstWidget->clear();
-        for (unsigned int i=0; i<listShortcuts.size(); i++)
+        for (const auto& shortcut : listShortcuts)
         {
-            QString curName = listShortcuts[i].name;
-            lstWidget->addItem(curName);
+            lstWidget->addItem(shortcut.name);
         }
 
         updateTitleText();
-        event->accept();
+        QWidget::showEvent(event);
     }
-
-
-    QComboBox* populateItems()
-    {
-        QComboBox *comboBox = new QComboBox();
-        comboBox->addItem("None", QGamepadManager::ButtonInvalid);
-        comboBox->addItem("A", QGamepadManager::ButtonA);
-        comboBox->addItem("B", QGamepadManager::ButtonB);
-        comboBox->addItem("X", QGamepadManager::ButtonX);
-        comboBox->addItem("Y", QGamepadManager::ButtonY);
-        comboBox->addItem("Up", QGamepadManager::ButtonUp);
-        comboBox->addItem("Down", QGamepadManager::ButtonDown);
-        comboBox->addItem("Right", QGamepadManager::ButtonRight);
-        comboBox->addItem("Left", QGamepadManager::ButtonLeft);
-        comboBox->addItem("LB", QGamepadManager::ButtonL1);
-        comboBox->addItem("RB", QGamepadManager::ButtonR1);
-        comboBox->addItem("LT", QGamepadManager::ButtonL2);
-        comboBox->addItem("RT", QGamepadManager::ButtonR2);
-        comboBox->addItem("Start", QGamepadManager::ButtonStart);
-        comboBox->addItem("Back", QGamepadManager::ButtonSelect);
-        comboBox->addItem("L3", QGamepadManager::ButtonL3);
-        comboBox->addItem("R3", QGamepadManager::ButtonR3);
-        comboBox->addItem("Guide", QGamepadManager::ButtonGuide);
-
-        return comboBox;
-    }
-
 };
 
 #endif // TSSHORTCUT_H

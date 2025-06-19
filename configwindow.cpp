@@ -1,41 +1,80 @@
 #include "configwindow.h"
 #include "gpmanager.h"
+#include <QKeySequence>
+
+// Helper function to create a row in the grid
+void addMappingRow(QGridLayout *layout, int row, const QString& name, QLabel*& keyLabel, QPushButton*& mapButton) {
+    keyLabel = new QLabel("Not Mapped");
+    keyLabel->setMinimumWidth(80);
+    mapButton = new QPushButton("Change");
+    layout->addWidget(new QLabel(name), row, 0, Qt::AlignRight);
+    layout->addWidget(keyLabel, row, 1);
+    layout->addWidget(mapButton, row, 2);
+}
 
 ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
 {
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
-    this->setWindowTitle(tr("InputRedirectionClient-Qt - Button Config"));
+    this->setWindowTitle(tr("InputRedirectionClient-Qt - Keyboard Config"));
 
-    comboBoxA = populateItems(variantToButton(settings.value("ButtonA", QGamepadManager::ButtonA)));
-    comboBoxB = populateItems(variantToButton(settings.value("ButtonB", QGamepadManager::ButtonB)));
-    comboBoxX = populateItems(variantToButton(settings.value("ButtonX", QGamepadManager::ButtonX)));
-    comboBoxY = populateItems(variantToButton(settings.value("ButtonY", QGamepadManager::ButtonY)));
-    comboBoxUp = populateItems(variantToButton(settings.value("ButtonUp", QGamepadManager::ButtonUp)));
-    comboBoxDown = populateItems(variantToButton(settings.value("ButtonDown", QGamepadManager::ButtonDown)));
-    comboBoxLeft = populateItems(variantToButton(settings.value("ButtonLeft", QGamepadManager::ButtonLeft)));
-    comboBoxRight = populateItems(variantToButton(settings.value("ButtonRight", QGamepadManager::ButtonRight)));
-    comboBoxL = populateItems(variantToButton(settings.value("ButtonL", QGamepadManager::ButtonL1)));
-    comboBoxR = populateItems(variantToButton(settings.value("ButtonR", QGamepadManager::ButtonR1)));
-    comboBoxSelect = populateItems(variantToButton(settings.value("ButtonSelect", QGamepadManager::ButtonSelect)));
-    comboBoxStart = populateItems(variantToButton(settings.value("ButtonStart", QGamepadManager::ButtonStart)));
-    comboBoxZL = populateItems(variantToButton(settings.value("ButtonZL", QGamepadManager::ButtonL2)));
-    comboBoxZR = populateItems(variantToButton(settings.value("ButtonZR", QGamepadManager::ButtonR2)));
-    comboBoxHome = populateItems(variantToButton(settings.value("ButtonHome", QGamepadManager::ButtonInvalid)));
-    comboBoxPower = populateItems(variantToButton(settings.value("ButtonPower", QGamepadManager::ButtonInvalid)));
-    comboBoxPowerLong = populateItems(variantToButton(settings.value("ButtonPowerLong", QGamepadManager::ButtonInvalid)));
+    layout = new QGridLayout(this);
+    lblDirections = new QLabel("Click 'Change' to map a key. Click Save to apply changes.");
+    layout->addWidget(lblDirections, 0, 0, 1, 4, Qt::AlignCenter);
+
+    // Create the new UI rows
+    int currentRow = 1;
+    addMappingRow(layout, currentRow++, "A Button", lblKeyA, btnMapA);
+    addMappingRow(layout, currentRow++, "B Button", lblKeyB, btnMapB);
+    addMappingRow(layout, currentRow++, "X Button", lblKeyX, btnMapX);
+    addMappingRow(layout, currentRow++, "Y Button", lblKeyY, btnMapY);
+    addMappingRow(layout, currentRow++, "DPad-Up", lblKeyUp, btnMapUp);
+    addMappingRow(layout, currentRow++, "DPad-Down", lblKeyDown, btnMapDown);
+    addMappingRow(layout, currentRow++, "DPad-Left", lblKeyLeft, btnMapLeft);
+    addMappingRow(layout, currentRow++, "DPad-Right", lblKeyRight, btnMapRight);
+    addMappingRow(layout, currentRow++, "L Button", lblKeyL, btnMapL);
+    addMappingRow(layout, currentRow++, "R Button", lblKeyR, btnMapR);
+    addMappingRow(layout, currentRow++, "ZL Button", lblKeyZL, btnMapZL);
+    addMappingRow(layout, currentRow++, "ZR Button", lblKeyZR, btnMapZR);
+    addMappingRow(layout, currentRow++, "Start", lblKeyStart, btnMapStart);
+    addMappingRow(layout, currentRow++, "Select", lblKeySelect, btnMapSelect);
+    addMappingRow(layout, currentRow++, "Home", lblKeyHome, btnMapHome);
+    addMappingRow(layout, currentRow++, "Power", lblKeyPower, btnMapPower);
+    addMappingRow(layout, currentRow++, "Power (Long)", lblKeyPowerLong, btnMapPowerLong);
+
+    auto createMapConnection = [this](QPushButton* button, const QString& buttonName) {
+        connect(button, &QPushButton::clicked, this, [this, buttonName]() {
+            buttonToRemap = buttonName;
+            lblDirections->setText(QString("Press a key for: %1...").arg(buttonName));
+            this->setFocus();
+        });
+    };
+
+    // Corrected variable names here
+    createMapConnection(btnMapA, "ButtonA");
+    createMapConnection(btnMapB, "ButtonB");
+    createMapConnection(btnMapX, "ButtonX");
+    createMapConnection(btnMapY, "ButtonY");
+    createMapConnection(btnMapUp, "ButtonUp");
+    createMapConnection(btnMapDown, "ButtonDown");
+    createMapConnection(btnMapLeft, "ButtonLeft");
+    createMapConnection(btnMapRight, "ButtonRight");
+    createMapConnection(btnMapL, "ButtonL");
+    createMapConnection(btnMapR, "ButtonR");
+    createMapConnection(btnMapZL, "ButtonZL");
+    createMapConnection(btnMapZR, "ButtonZR");
+    createMapConnection(btnMapStart, "ButtonStart");
+    createMapConnection(btnMapSelect, "ButtonSelect");
+    createMapConnection(btnMapHome, "ButtonHome");
+    createMapConnection(btnMapPower, "ButtonPower");
+    createMapConnection(btnMapPowerLong, "ButtonPowerLong");
+
+
+    // --- Checkboxes and other settings ---
     txtCppVal = new QLineEdit();
     txtStickVal = new QLineEdit();
     validator = new QIntValidator();
-
     txtCppVal->setValidator(validator);
     txtStickVal->setValidator(validator);
-
-    txtCppVal->setText(tr("%1").arg(CPP_BOUND));
-    txtStickVal->setText(tr("%1").arg(CPAD_BOUND));
-
-    txtCppVal->setClearButtonEnabled(true);
-    txtStickVal->setClearButtonEnabled(true);
-
     invertYCheckbox = new QCheckBox(this);
     invertYCppCheckbox = new QCheckBox(this);
     swapSticksCheckbox = new QCheckBox(this);
@@ -43,260 +82,68 @@ ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
     rsSmashCheckbox = new QCheckBox(this);
     rsFaceButtonsCheckbox = new QCheckBox();
     disableCStickCheckbox = new QCheckBox();
+    saveButton = new QPushButton(tr("&SAVE and Apply"), this);
 
-    saveButton = new QPushButton(tr("&SAVE"), this);
+    layout->addWidget(new QLabel("Stick Range:"), currentRow, 0, Qt::AlignRight);
+    layout->addWidget(txtStickVal, currentRow++, 1, 1, 2);
+    layout->addWidget(new QLabel("CPP Range:"), currentRow, 0, Qt::AlignRight);
+    layout->addWidget(txtCppVal, currentRow++, 1, 1, 2);
 
-    layout = new QGridLayout(this);
+    QGridLayout* checkboxLayout = new QGridLayout();
+    checkboxLayout->addWidget(new QLabel("Invert Y axis"), 0, 0);
+    checkboxLayout->addWidget(invertYCheckbox, 0, 1);
+    checkboxLayout->addWidget(new QLabel("Invert CPP Y"), 0, 2);
+    checkboxLayout->addWidget(invertYCppCheckbox, 0, 3);
+    checkboxLayout->addWidget(new QLabel("Disable C-Stick"), 1, 0);
+    checkboxLayout->addWidget(disableCStickCheckbox, 1, 1);
+    checkboxLayout->addWidget(new QLabel("Swap Sticks"), 1, 2);
+    checkboxLayout->addWidget(swapSticksCheckbox, 1, 3);
+    checkboxLayout->addWidget(new QLabel("RS as DPad"), 2, 0);
+    checkboxLayout->addWidget(mhCameraCheckbox, 2, 1);
+    checkboxLayout->addWidget(new QLabel("RS as ABXY"), 2, 2);
+    checkboxLayout->addWidget(rsFaceButtonsCheckbox, 2, 3);
+    checkboxLayout->addWidget(new QLabel("RS as Smash"), 3, 0);
+    checkboxLayout->addWidget(rsSmashCheckbox, 3, 1);
 
-    layout->addWidget(new QLabel("Y Button"), 0, 0);
-    layout->addWidget(comboBoxY, 0, 1);
-    layout->addWidget(new QLabel("X Button"), 0, 2);
-    layout->addWidget(comboBoxX, 0, 3);
-    layout->addWidget(new QLabel("B Button"), 1, 0);
-    layout->addWidget(comboBoxB, 1, 1);
-    layout->addWidget(new QLabel("A Button"), 1, 2);
-    layout->addWidget(comboBoxA, 1, 3);
+    layout->addLayout(checkboxLayout, currentRow++, 0, 1, 4);
+    layout->addWidget(saveButton, currentRow, 0, 1, 4);
 
-    layout->addWidget(new QLabel("DPad-Down"), 2, 0);
-    layout->addWidget(comboBoxDown, 2, 1);
-    layout->addWidget(new QLabel("DPad-Up"), 2, 2);
-    layout->addWidget(comboBoxUp, 2, 3);
-    layout->addWidget(new QLabel("DPad-Left"), 3, 0);
-    layout->addWidget(comboBoxLeft, 3, 1);
-    layout->addWidget(new QLabel("DPad-Right"), 3, 2);
-    layout->addWidget(comboBoxRight, 3, 3);
-
-    layout->addWidget(new QLabel("L Button"), 4, 0);
-    layout->addWidget(comboBoxL, 4, 1);
-    layout->addWidget(new QLabel("R Button"), 4, 2);
-    layout->addWidget(comboBoxR, 4, 3);
-    layout->addWidget(new QLabel("ZL Button"), 5, 0);
-    layout->addWidget(comboBoxZL, 5, 1);
-    layout->addWidget(new QLabel("ZR Button"), 5, 2);
-    layout->addWidget(comboBoxZR, 5, 3);
-
-    layout->addWidget(new QLabel("Select"), 6, 0);
-    layout->addWidget(comboBoxSelect, 6, 1);
-    layout->addWidget(new QLabel("Start"), 6, 2);
-    layout->addWidget(comboBoxStart, 6, 3);
-
-    layout->addWidget(new QLabel("Power Button"), 7, 0);
-    layout->addWidget(comboBoxPower, 7, 1);
-    layout->addWidget(new QLabel("Power-Long"), 7, 2);
-    layout->addWidget(comboBoxPowerLong, 7, 3);
-    layout->addWidget(new QLabel("Home Button"), 8, 0, 1, 2);
-    layout->addWidget(comboBoxHome, 8, 1, 1, 2);
-    layout->addWidget(new QLabel("Stick Range:"), 9, 0);
-    layout->addWidget(txtStickVal, 9, 1, 2, 2);
-    layout->addWidget(new QLabel("CPP Range:"), 11, 0);
-    layout->addWidget(txtCppVal, 11, 1, 2, 2);
-
-    layout->addWidget(new QLabel("Invert Y axis"), 17, 0);
-    layout->addWidget(invertYCheckbox, 17, 1);
-    layout->addWidget(new QLabel("Invert CPP Y"), 17, 2);
-    layout->addWidget(invertYCppCheckbox, 17, 3);
-    layout->addWidget(new QLabel("Swap CPads"), 18, 2);
-    layout->addWidget(swapSticksCheckbox, 18, 3);
-    layout->addWidget(new QLabel("Disable C"), 18, 0);
-    layout->addWidget(disableCStickCheckbox, 18, 1);
-
-    layout->addWidget(new QLabel("RS as DPad"), 19, 0);
-    layout->addWidget(mhCameraCheckbox, 19, 1);
-    layout->addWidget(new QLabel("RS as Smash"), 20, 0);
-    layout->addWidget(rsSmashCheckbox, 20, 1);
-    layout->addWidget(new QLabel("RS as ABXY"), 19, 2);
-    layout->addWidget(rsFaceButtonsCheckbox, 19, 3);
-
-    layout->addWidget(saveButton, 21, 1, 1, 2);
-
-    connect(invertYCheckbox, &QCheckBox::stateChanged, this,
-            [](int state)
-    {
-        switch(state)
-        {
-            case Qt::Unchecked:
-                yAxisMultiplier = 1;
-                settings.setValue("invertY", false);
-                break;
-            case Qt::Checked:
-                yAxisMultiplier = -1;
-                settings.setValue("invertY", true);
-                break;
-            default: break;
-        }
+    connect(invertYCheckbox, &QCheckBox::stateChanged, [](int state){
+        settings.setValue("invertY", state == Qt::Checked);
+    });
+    connect(invertYCppCheckbox, &QCheckBox::stateChanged, [](int state){
+        settings.setValue("invertCPPY", state == Qt::Checked);
+    });
+    connect(swapSticksCheckbox, &QCheckBox::stateChanged, [](int state){
+        settings.setValue("swapSticks", state == Qt::Checked);
+    });
+    connect(rsSmashCheckbox, &QCheckBox::stateChanged, [](int state){
+        settings.setValue("rightStickSmash", state == Qt::Checked);
+    });
+    connect(mhCameraCheckbox, &QCheckBox::stateChanged, [](int state){
+        settings.setValue("monsterHunterCamera", state == Qt::Checked);
+    });
+    connect(disableCStickCheckbox, &QCheckBox::stateChanged, [](int state){
+        settings.setValue("cStickDisable", state == Qt::Checked);
+    });
+    connect(rsFaceButtonsCheckbox, &QCheckBox::stateChanged, [](int state){
+        settings.setValue("rightStickABXY", state == Qt::Checked);
     });
 
-    connect(invertYCppCheckbox, &QCheckBox::stateChanged, this,
-            [](int state)
-    {
-        switch(state)
-        {
-            case Qt::Unchecked:
-                yAxisMultiplierCpp = 1;
-                settings.setValue("invertCPPY", false);
-                break;
-            case Qt::Checked:
-                yAxisMultiplierCpp = -1;
-                settings.setValue("invertCPPY", true);
-                break;
-            default: break;
-        }
-    });
-
-
-    connect(swapSticksCheckbox, &QCheckBox::stateChanged, this,
-            [](int state)
-    {
-        switch(state)
-        {
-            case Qt::Unchecked:
-                btnSettings.setShouldSwapStick(false);
-                settings.setValue("swapSticks", false);
-                break;
-            case Qt::Checked:
-                btnSettings.setShouldSwapStick(true);
-                settings.setValue("swapSticks", true);
-                break;
-            default: break;
-        }
-
-    });
-
-    connect(rsSmashCheckbox, &QCheckBox::stateChanged, this,
-            [](int state)
-    {
-         switch(state)
-         {
-             case Qt::Unchecked:
-                 btnSettings.setRightStickSmash(false);
-                 settings.setValue("rightStickSmash", false);
-                 break;
-             case Qt::Checked:
-                 btnSettings.setRightStickSmash(true);
-                 settings.setValue("rightStickSmash", true);
-                 break;
-             default: break;
-         }
-
-     });
-
-    connect(mhCameraCheckbox, &QCheckBox::stateChanged, this,
-            [](int state)
-    {
-        switch(state)
-        {
-            case Qt::Unchecked:
-               btnSettings.setMonsterHunterCamera(false);
-                settings.setValue("monsterHunterCamera", false);
-                break;
-            case Qt::Checked:
-                btnSettings.setMonsterHunterCamera(true);
-                settings.setValue("monsterHunterCamera", true);
-                break;
-            default: break;
-        }
-    });
-    connect(disableCStickCheckbox, &QCheckBox::stateChanged, this,
-            [](int state)
-    {
-        switch(state)
-        {
-            case Qt::Unchecked:
-                btnSettings.setCStickDisabled(false);
-                settings.setValue("cStickDisable", false);
-                break;
-            case Qt::Checked:
-                btnSettings.setCStickDisabled(true);
-                settings.setValue("cStickDisable", true);
-                break;
-            default: break;
-        }
-    });
-    connect(rsFaceButtonsCheckbox, &QCheckBox::stateChanged, this,
-            [](int state)
-    {
-        switch(state)
-        {
-            case Qt::Unchecked:
-                btnSettings.setRightStickFaceButtons(false);
-                settings.setValue("rightStickABXY", false);
-                break;
-            case Qt::Checked:
-                btnSettings.setRightStickFaceButtons(true);
-                settings.setValue("rightStickABXY", true);
-                break;
-            default: break;
-        }
-    });
-
-    connect(saveButton, &QPushButton::pressed, this,
-            [this, ts](void)
-    {
-        QGamepadManager::GamepadButton a = variantToButton(currentData(comboBoxA));
-        hidButtonsAB[0] = a;
-        settings.setValue("ButtonA", a);
-        QGamepadManager::GamepadButton b = variantToButton(currentData(comboBoxB));
-        hidButtonsAB[1] = b;
-        settings.setValue("ButtonB", b);
-
-        QGamepadManager::GamepadButton select = variantToButton(currentData(comboBoxSelect));
-        hidButtonsMiddle[0] = select;
-        settings.setValue("ButtonSelect", select);
-        QGamepadManager::GamepadButton start = variantToButton(currentData(comboBoxStart));
-        hidButtonsMiddle[1] = start;
-        settings.setValue("ButtonStart", start);
-        QGamepadManager::GamepadButton right = variantToButton(currentData(comboBoxRight));
-        hidButtonsMiddle[2] = right;
-        settings.setValue("ButtonRight", right);
-        QGamepadManager::GamepadButton left = variantToButton(currentData(comboBoxLeft));
-        hidButtonsMiddle[3] = left;
-        settings.setValue("ButtonLeft", left);
-        QGamepadManager::GamepadButton up = variantToButton(currentData(comboBoxUp));
-        hidButtonsMiddle[4] = up;
-        settings.setValue("ButtonUp", up);
-        QGamepadManager::GamepadButton down = variantToButton(currentData(comboBoxDown));
-        hidButtonsMiddle[5] = down;
-        settings.setValue("ButtonDown", down);
-        QGamepadManager::GamepadButton r = variantToButton(currentData(comboBoxR));
-        hidButtonsMiddle[6] = r;
-        settings.setValue("ButtonR", r);
-        QGamepadManager::GamepadButton l = variantToButton(currentData(comboBoxL));
-        hidButtonsMiddle[7] = l;
-        settings.setValue("ButtonL", l);
-
-        QGamepadManager::GamepadButton x = variantToButton(currentData(comboBoxX));
-        hidButtonsXY[0] = x;
-        settings.setValue("ButtonX", x);
-        QGamepadManager::GamepadButton y = variantToButton(currentData(comboBoxY));
-        hidButtonsXY[1] = y;
-        settings.setValue("ButtonY", y);
-
-        QGamepadManager::GamepadButton zr = variantToButton(currentData(comboBoxZR));
-        irButtons[0] = zr;
-        settings.setValue("ButtonZR", zr);
-        QGamepadManager::GamepadButton zl = variantToButton(currentData(comboBoxZL));
-        irButtons[1] = zl;
-        settings.setValue("ButtonZL", zl);
-
-        QGamepadManager::GamepadButton power = variantToButton(currentData(comboBoxPower));
-        powerButton = power;
-        settings.setValue("ButtonPower", power);
-        QGamepadManager::GamepadButton powerLong = variantToButton(currentData(comboBoxPowerLong));
-        powerLongButton = powerLong;
-        settings.setValue("ButtonPowerLong", powerLong);
-        QGamepadManager::GamepadButton home = variantToButton(currentData(comboBoxHome));
-        homeButton = home;
-        settings.setValue("ButtonHome", home);
-
-        CPP_BOUND = txtCppVal->text().toInt();
-        CPAD_BOUND = txtStickVal->text().toInt();
-        settings.setValue("StickBound", CPAD_BOUND);
-        settings.setValue("CppBound", CPP_BOUND);
-
+    connect(saveButton, &QPushButton::pressed, this, [this, ts]() {
+        settings.setValue("StickBound", txtStickVal->text().toInt());
+        settings.setValue("CppBound", txtCppVal->text().toInt());
+        loadKeysFromSettingsIntoGlobals();
         ts->updatePixmap();
-
+        lblDirections->setText("Settings Saved and Applied!");
     });
+}
 
+void ConfigWindow::showEvent(QShowEvent* event) {
+    // Load settings from file every time the window is shown
+    loadKeysFromSettings();
+    txtStickVal->setText(settings.value("StickBound", 1488).toString());
+    txtCppVal->setText(settings.value("CppBound", 127).toString());
     invertYCheckbox->setChecked(settings.value("invertY", false).toBool());
     invertYCppCheckbox->setChecked(settings.value("invertCPPY", false).toBool());
     swapSticksCheckbox->setChecked(settings.value("swapSticks", false).toBool());
@@ -304,41 +151,61 @@ ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
     rsSmashCheckbox->setChecked(settings.value("rightStickSmash", false).toBool());
     disableCStickCheckbox->setChecked(settings.value("cStickDisable", false).toBool());
     rsFaceButtonsCheckbox->setChecked(settings.value("rightStickABXY", false).toBool());
+    QDialog::showEvent(event);
 }
 
-QComboBox* ConfigWindow::populateItems(QGamepadManager::GamepadButton button)
-{
-    QComboBox *comboBox = new QComboBox();
-    comboBox->addItem("A", QGamepadManager::ButtonA);
-    comboBox->addItem("B", QGamepadManager::ButtonB);
-    comboBox->addItem("X", QGamepadManager::ButtonX);
-    comboBox->addItem("Y", QGamepadManager::ButtonY);
-    comboBox->addItem("Up", QGamepadManager::ButtonUp);
-    comboBox->addItem("Down", QGamepadManager::ButtonDown);
-    comboBox->addItem("Right", QGamepadManager::ButtonRight);
-    comboBox->addItem("Left", QGamepadManager::ButtonLeft);
-    comboBox->addItem("LB", QGamepadManager::ButtonL1);
-    comboBox->addItem("RB", QGamepadManager::ButtonR1);
-    comboBox->addItem("LT", QGamepadManager::ButtonL2);
-    comboBox->addItem("RT", QGamepadManager::ButtonR2);
-    comboBox->addItem("Start", QGamepadManager::ButtonStart);
-    comboBox->addItem("Back", QGamepadManager::ButtonSelect);
-    comboBox->addItem("L3", QGamepadManager::ButtonL3);
-    comboBox->addItem("R3", QGamepadManager::ButtonR3);
-    comboBox->addItem("Guide", QGamepadManager::ButtonGuide);
-    comboBox->addItem("None", QGamepadManager::ButtonInvalid);
-
-    int index = comboBox->findData(button);
-    comboBox->setCurrentIndex(index);
-
-    return comboBox;
+void ConfigWindow::keyPressEvent(QKeyEvent *event) {
+    if (!buttonToRemap.isEmpty() && event->key() != Qt::Key_unknown) {
+        setKeyMapping(buttonToRemap, event->key());
+        buttonToRemap.clear();
+        lblDirections->setText("Click 'Change' to map a key. Click Save to apply.");
+    } else {
+        QDialog::keyPressEvent(event);
+    }
 }
 
-QVariant ConfigWindow::currentData(QComboBox *comboBox)
-{
-    QVariant variant;
+void ConfigWindow::setKeyMapping(const QString& buttonName, int key, bool saveSetting) {
+    if (saveSetting) {
+        settings.setValue(buttonName, key);
+    }
+    QString keyText = QKeySequence(key).toString();
+    if (keyText.isEmpty() || key == 0) keyText = "None";
 
-    variant = comboBox->itemData(comboBox->currentIndex());
+    if (buttonName == "ButtonA") lblKeyA->setText(keyText);
+    else if (buttonName == "ButtonB") lblKeyB->setText(keyText);
+    else if (buttonName == "ButtonX") lblKeyX->setText(keyText);
+    else if (buttonName == "ButtonY") lblKeyY->setText(keyText);
+    else if (buttonName == "ButtonUp") lblKeyUp->setText(keyText);
+    else if (buttonName == "ButtonDown") lblKeyDown->setText(keyText);
+    else if (buttonName == "ButtonLeft") lblKeyLeft->setText(keyText);
+    else if (buttonName == "ButtonRight") lblKeyRight->setText(keyText);
+    else if (buttonName == "ButtonL") lblKeyL->setText(keyText);
+    else if (buttonName == "ButtonR") lblKeyR->setText(keyText);
+    else if (buttonName == "ButtonZL") lblKeyZL->setText(keyText);
+    else if (buttonName == "ButtonZR") lblKeyZR->setText(keyText);
+    else if (buttonName == "ButtonStart") lblKeyStart->setText(keyText);
+    else if (buttonName == "ButtonSelect") lblKeySelect->setText(keyText);
+    else if (buttonName == "ButtonHome") lblKeyHome->setText(keyText);
+    else if (buttonName == "ButtonPower") lblKeyPower->setText(keyText);
+    else if (buttonName == "ButtonPowerLong") lblKeyPowerLong->setText(keyText);
+}
 
-    return variant;
+void ConfigWindow::loadKeysFromSettings() {
+    setKeyMapping("ButtonA", settings.value("ButtonA", Qt::Key_J).toInt(), false);
+    setKeyMapping("ButtonB", settings.value("ButtonB", Qt::Key_K).toInt(), false);
+    setKeyMapping("ButtonX", settings.value("ButtonX", Qt::Key_I).toInt(), false);
+    setKeyMapping("ButtonY", settings.value("ButtonY", Qt::Key_L).toInt(), false);
+    setKeyMapping("ButtonUp", settings.value("ButtonUp", Qt::Key_W).toInt(), false);
+    setKeyMapping("ButtonDown", settings.value("ButtonDown", Qt::Key_S).toInt(), false);
+    setKeyMapping("ButtonLeft", settings.value("ButtonLeft", Qt::Key_A).toInt(), false);
+    setKeyMapping("ButtonRight", settings.value("ButtonRight", Qt::Key_D).toInt(), false);
+    setKeyMapping("ButtonL", settings.value("ButtonL", Qt::Key_Q).toInt(), false);
+    setKeyMapping("ButtonR", settings.value("ButtonR", Qt::Key_E).toInt(), false);
+    setKeyMapping("ButtonZL", settings.value("ButtonZL", Qt::Key_1).toInt(), false);
+    setKeyMapping("ButtonZR", settings.value("ButtonZR", Qt::Key_3).toInt(), false);
+    setKeyMapping("ButtonStart", settings.value("ButtonStart", Qt::Key_Return).toInt(), false);
+    setKeyMapping("ButtonSelect", settings.value("ButtonSelect", Qt::Key_Shift).toInt(), false);
+    setKeyMapping("ButtonHome", settings.value("ButtonHome", Qt::Key_Home).toInt(), false);
+    setKeyMapping("ButtonPower", settings.value("ButtonPower", 0).toInt(), false);
+    setKeyMapping("ButtonPowerLong", settings.value("ButtonPowerLong", 0).toInt(), false);
 }
