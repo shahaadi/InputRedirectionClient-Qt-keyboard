@@ -1,6 +1,8 @@
 #include "configwindow.h"
 #include "gpmanager.h"
 #include <QKeySequence>
+#include <QGroupBox>
+#include <QScrollArea> // NEW: Include for scroll area
 
 // Helper function to create a row in the grid
 void addMappingRow(QGridLayout *layout, int row, const QString& name, QLabel*& keyLabel, QPushButton*& mapButton) {
@@ -17,29 +19,72 @@ ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
     this->setWindowTitle(tr("InputRedirectionClient-Qt - Keyboard Config"));
 
-    layout = new QGridLayout(this);
-    lblDirections = new QLabel("Click 'Change' to map a key. Click Save to apply changes.");
-    layout->addWidget(lblDirections, 0, 0, 1, 4, Qt::AlignCenter);
+    // --- NEW: Create a scroll area to contain all the widgets ---
+    scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true); // This is crucial for the layout to work correctly
+    scrollAreaWidgetContents = new QWidget();
 
-    // Create the new UI rows
-    int currentRow = 1;
-    addMappingRow(layout, currentRow++, "A Button", lblKeyA, btnMapA);
-    addMappingRow(layout, currentRow++, "B Button", lblKeyB, btnMapB);
-    addMappingRow(layout, currentRow++, "X Button", lblKeyX, btnMapX);
-    addMappingRow(layout, currentRow++, "Y Button", lblKeyY, btnMapY);
-    addMappingRow(layout, currentRow++, "DPad-Up", lblKeyUp, btnMapUp);
-    addMappingRow(layout, currentRow++, "DPad-Down", lblKeyDown, btnMapDown);
-    addMappingRow(layout, currentRow++, "DPad-Left", lblKeyLeft, btnMapLeft);
-    addMappingRow(layout, currentRow++, "DPad-Right", lblKeyRight, btnMapRight);
-    addMappingRow(layout, currentRow++, "L Button", lblKeyL, btnMapL);
-    addMappingRow(layout, currentRow++, "R Button", lblKeyR, btnMapR);
-    addMappingRow(layout, currentRow++, "ZL Button", lblKeyZL, btnMapZL);
-    addMappingRow(layout, currentRow++, "ZR Button", lblKeyZR, btnMapZR);
-    addMappingRow(layout, currentRow++, "Start", lblKeyStart, btnMapStart);
-    addMappingRow(layout, currentRow++, "Select", lblKeySelect, btnMapSelect);
-    addMappingRow(layout, currentRow++, "Home", lblKeyHome, btnMapHome);
-    addMappingRow(layout, currentRow++, "Power", lblKeyPower, btnMapPower);
-    addMappingRow(layout, currentRow++, "Power (Long)", lblKeyPowerLong, btnMapPowerLong);
+    // The mainLayout now applies to the widget *inside* the scroll area
+    mainLayout = new QVBoxLayout(scrollAreaWidgetContents);
+
+    lblDirections = new QLabel("Click 'Change' to map a key. Click Save to apply changes.");
+    mainLayout->addWidget(lblDirections, 0, Qt::AlignCenter);
+
+    // --- C-Pad and D-Pad Group ---
+    QGroupBox *cpadGroup = new QGroupBox("Circle Pad & D-Pad");
+    QGridLayout *cpadLayout = new QGridLayout();
+    int cpadRow = 0;
+    addMappingRow(cpadLayout, cpadRow++, "C-Pad Up", lblKeyCPadUp, btnMapCPadUp);
+    addMappingRow(cpadLayout, cpadRow++, "C-Pad Down", lblKeyCPadDown, btnMapCPadDown);
+    addMappingRow(cpadLayout, cpadRow++, "C-Pad Left", lblKeyCPadLeft, btnMapCPadLeft);
+    addMappingRow(cpadLayout, cpadRow++, "C-Pad Right", lblKeyCPadRight, btnMapCPadRight);
+    cpadLayout->setRowStretch(cpadRow++, 10); // Spacer
+    addMappingRow(cpadLayout, cpadRow++, "D-Pad Up", lblKeyUp, btnMapUp);
+    addMappingRow(cpadLayout, cpadRow++, "D-Pad Down", lblKeyDown, btnMapDown);
+    addMappingRow(cpadLayout, cpadRow++, "D-Pad Left", lblKeyLeft, btnMapLeft);
+    addMappingRow(cpadLayout, cpadRow++, "D-Pad Right", lblKeyRight, btnMapRight);
+    cpadGroup->setLayout(cpadLayout);
+    mainLayout->addWidget(cpadGroup);
+
+    // --- Buttons Group ---
+    QGroupBox *buttonsGroup = new QGroupBox("Buttons");
+    QGridLayout *buttonsLayout = new QGridLayout();
+    int buttonRow = 0;
+    addMappingRow(buttonsLayout, buttonRow++, "A Button", lblKeyA, btnMapA);
+    addMappingRow(buttonsLayout, buttonRow++, "B Button", lblKeyB, btnMapB);
+    addMappingRow(buttonsLayout, buttonRow++, "X Button", lblKeyX, btnMapX);
+    addMappingRow(buttonsLayout, buttonRow++, "Y Button", lblKeyY, btnMapY);
+    buttonsLayout->setRowStretch(buttonRow++, 10); // Spacer
+    addMappingRow(buttonsLayout, buttonRow++, "L Button", lblKeyL, btnMapL);
+    addMappingRow(buttonsLayout, buttonRow++, "R Button", lblKeyR, btnMapR);
+    addMappingRow(buttonsLayout, buttonRow++, "ZL Button", lblKeyZL, btnMapZL);
+    addMappingRow(buttonsLayout, buttonRow++, "ZR Button", lblKeyZR, btnMapZR);
+    buttonsGroup->setLayout(buttonsLayout);
+    mainLayout->addWidget(buttonsGroup);
+
+    // --- C-Stick Group ---
+    QGroupBox *cstickGroup = new QGroupBox("C-Stick (Right Stick)");
+    QGridLayout *cstickLayout = new QGridLayout();
+    int cstickRow = 0;
+    addMappingRow(cstickLayout, cstickRow++, "C-Stick Up", lblKeyCStickUp, btnMapCStickUp);
+    addMappingRow(cstickLayout, cstickRow++, "C-Stick Down", lblKeyCStickDown, btnMapCStickDown);
+    addMappingRow(cstickLayout, cstickRow++, "C-Stick Left", lblKeyCStickLeft, btnMapCStickLeft);
+    addMappingRow(cstickLayout, cstickRow++, "C-Stick Right", lblKeyCStickRight, btnMapCStickRight);
+    cstickGroup->setLayout(cstickLayout);
+    mainLayout->addWidget(cstickGroup);
+
+    // --- System Buttons Group ---
+    QGroupBox *systemGroup = new QGroupBox("System");
+    QGridLayout *systemLayout = new QGridLayout();
+    int systemRow = 0;
+    addMappingRow(systemLayout, systemRow++, "Start", lblKeyStart, btnMapStart);
+    addMappingRow(systemLayout, systemRow++, "Select", lblKeySelect, btnMapSelect);
+    addMappingRow(systemLayout, systemRow++, "Home", lblKeyHome, btnMapHome);
+    addMappingRow(systemLayout, systemRow++, "Power", lblKeyPower, btnMapPower);
+    addMappingRow(systemLayout, systemRow++, "Power (Long)", lblKeyPowerLong, btnMapPowerLong);
+    systemGroup->setLayout(systemLayout);
+    mainLayout->addWidget(systemGroup);
+
 
     auto createMapConnection = [this](QPushButton* button, const QString& buttonName) {
         connect(button, &QPushButton::clicked, this, [this, buttonName]() {
@@ -49,7 +94,6 @@ ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
         });
     };
 
-    // Corrected variable names here
     createMapConnection(btnMapA, "ButtonA");
     createMapConnection(btnMapB, "ButtonB");
     createMapConnection(btnMapX, "ButtonX");
@@ -67,46 +111,49 @@ ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
     createMapConnection(btnMapHome, "ButtonHome");
     createMapConnection(btnMapPower, "ButtonPower");
     createMapConnection(btnMapPowerLong, "ButtonPowerLong");
+    createMapConnection(btnMapCPadUp, "CPadUp");
+    createMapConnection(btnMapCPadDown, "CPadDown");
+    createMapConnection(btnMapCPadLeft, "CPadLeft");
+    createMapConnection(btnMapCPadRight, "CPadRight");
+    createMapConnection(btnMapCStickUp, "CStickUp");
+    createMapConnection(btnMapCStickDown, "CStickDown");
+    createMapConnection(btnMapCStickLeft, "CStickLeft");
+    createMapConnection(btnMapCStickRight, "CStickRight");
 
-
-    // --- Checkboxes and other settings ---
+    // --- Other Settings Group ---
+    QGroupBox *otherGroup = new QGroupBox("Other Settings");
+    QGridLayout *otherLayout = new QGridLayout();
     txtCppVal = new QLineEdit();
     txtStickVal = new QLineEdit();
     validator = new QIntValidator();
     txtCppVal->setValidator(validator);
     txtStickVal->setValidator(validator);
-    invertYCheckbox = new QCheckBox(this);
-    invertYCppCheckbox = new QCheckBox(this);
-    swapSticksCheckbox = new QCheckBox(this);
-    mhCameraCheckbox = new QCheckBox(this);
-    rsSmashCheckbox = new QCheckBox(this);
-    rsFaceButtonsCheckbox = new QCheckBox();
-    disableCStickCheckbox = new QCheckBox();
+    invertYCheckbox = new QCheckBox("Invert C-Pad Y");
+    invertYCppCheckbox = new QCheckBox("Invert C-Stick Y");
+    swapSticksCheckbox = new QCheckBox("Swap C-Pad/C-Stick");
+    disableCStickCheckbox = new QCheckBox("Disable C-Stick");
+    otherLayout->addWidget(new QLabel("Stick Range:"), 0, 0);
+    otherLayout->addWidget(txtStickVal, 0, 1);
+    otherLayout->addWidget(new QLabel("CPP Range:"), 1, 0);
+    otherLayout->addWidget(txtCppVal, 1, 1);
+    otherLayout->addWidget(invertYCheckbox, 2, 0);
+    otherLayout->addWidget(invertYCppCheckbox, 2, 1);
+    otherLayout->addWidget(swapSticksCheckbox, 3, 0);
+    otherLayout->addWidget(disableCStickCheckbox, 3, 1);
+    otherGroup->setLayout(otherLayout);
+    mainLayout->addWidget(otherGroup);
+    
     saveButton = new QPushButton(tr("&SAVE and Apply"), this);
+    mainLayout->addWidget(saveButton);
 
-    layout->addWidget(new QLabel("Stick Range:"), currentRow, 0, Qt::AlignRight);
-    layout->addWidget(txtStickVal, currentRow++, 1, 1, 2);
-    layout->addWidget(new QLabel("CPP Range:"), currentRow, 0, Qt::AlignRight);
-    layout->addWidget(txtCppVal, currentRow++, 1, 1, 2);
+    // --- Finalize Layout ---
+    // Place the widget containing all our settings inside the scroll area
+    scrollArea->setWidget(scrollAreaWidgetContents);
 
-    QGridLayout* checkboxLayout = new QGridLayout();
-    checkboxLayout->addWidget(new QLabel("Invert Y axis"), 0, 0);
-    checkboxLayout->addWidget(invertYCheckbox, 0, 1);
-    checkboxLayout->addWidget(new QLabel("Invert CPP Y"), 0, 2);
-    checkboxLayout->addWidget(invertYCppCheckbox, 0, 3);
-    checkboxLayout->addWidget(new QLabel("Disable C-Stick"), 1, 0);
-    checkboxLayout->addWidget(disableCStickCheckbox, 1, 1);
-    checkboxLayout->addWidget(new QLabel("Swap Sticks"), 1, 2);
-    checkboxLayout->addWidget(swapSticksCheckbox, 1, 3);
-    checkboxLayout->addWidget(new QLabel("RS as DPad"), 2, 0);
-    checkboxLayout->addWidget(mhCameraCheckbox, 2, 1);
-    checkboxLayout->addWidget(new QLabel("RS as ABXY"), 2, 2);
-    checkboxLayout->addWidget(rsFaceButtonsCheckbox, 2, 3);
-    checkboxLayout->addWidget(new QLabel("RS as Smash"), 3, 0);
-    checkboxLayout->addWidget(rsSmashCheckbox, 3, 1);
+    // Create the final layout for the dialog window and add the scroll area to it
+    QVBoxLayout *dialogLayout = new QVBoxLayout(this);
+    dialogLayout->addWidget(scrollArea);
 
-    layout->addLayout(checkboxLayout, currentRow++, 0, 1, 4);
-    layout->addWidget(saveButton, currentRow, 0, 1, 4);
 
     connect(invertYCheckbox, &QCheckBox::stateChanged, [](int state){
         settings.setValue("invertY", state == Qt::Checked);
@@ -117,17 +164,8 @@ ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
     connect(swapSticksCheckbox, &QCheckBox::stateChanged, [](int state){
         settings.setValue("swapSticks", state == Qt::Checked);
     });
-    connect(rsSmashCheckbox, &QCheckBox::stateChanged, [](int state){
-        settings.setValue("rightStickSmash", state == Qt::Checked);
-    });
-    connect(mhCameraCheckbox, &QCheckBox::stateChanged, [](int state){
-        settings.setValue("monsterHunterCamera", state == Qt::Checked);
-    });
     connect(disableCStickCheckbox, &QCheckBox::stateChanged, [](int state){
         settings.setValue("cStickDisable", state == Qt::Checked);
-    });
-    connect(rsFaceButtonsCheckbox, &QCheckBox::stateChanged, [](int state){
-        settings.setValue("rightStickABXY", state == Qt::Checked);
     });
 
     connect(saveButton, &QPushButton::pressed, this, [this, ts]() {
@@ -140,17 +178,13 @@ ConfigWindow::ConfigWindow(QWidget *parent, TouchScreen *ts) : QDialog(parent)
 }
 
 void ConfigWindow::showEvent(QShowEvent* event) {
-    // Load settings from file every time the window is shown
     loadKeysFromSettings();
     txtStickVal->setText(settings.value("StickBound", 1488).toString());
     txtCppVal->setText(settings.value("CppBound", 127).toString());
     invertYCheckbox->setChecked(settings.value("invertY", false).toBool());
     invertYCppCheckbox->setChecked(settings.value("invertCPPY", false).toBool());
     swapSticksCheckbox->setChecked(settings.value("swapSticks", false).toBool());
-    mhCameraCheckbox->setChecked(settings.value("monsterHunterCamera", false).toBool());
-    rsSmashCheckbox->setChecked(settings.value("rightStickSmash", false).toBool());
     disableCStickCheckbox->setChecked(settings.value("cStickDisable", false).toBool());
-    rsFaceButtonsCheckbox->setChecked(settings.value("rightStickABXY", false).toBool());
     QDialog::showEvent(event);
 }
 
@@ -188,17 +222,25 @@ void ConfigWindow::setKeyMapping(const QString& buttonName, int key, bool saveSe
     else if (buttonName == "ButtonHome") lblKeyHome->setText(keyText);
     else if (buttonName == "ButtonPower") lblKeyPower->setText(keyText);
     else if (buttonName == "ButtonPowerLong") lblKeyPowerLong->setText(keyText);
+    else if (buttonName == "CPadUp") lblKeyCPadUp->setText(keyText);
+    else if (buttonName == "CPadDown") lblKeyCPadDown->setText(keyText);
+    else if (buttonName == "CPadLeft") lblKeyCPadLeft->setText(keyText);
+    else if (buttonName == "CPadRight") lblKeyCPadRight->setText(keyText);
+    else if (buttonName == "CStickUp") lblKeyCStickUp->setText(keyText);
+    else if (buttonName == "CStickDown") lblKeyCStickDown->setText(keyText);
+    else if (buttonName == "CStickLeft") lblKeyCStickLeft->setText(keyText);
+    else if (buttonName == "CStickRight") lblKeyCStickRight->setText(keyText);
 }
 
 void ConfigWindow::loadKeysFromSettings() {
     setKeyMapping("ButtonA", settings.value("ButtonA", Qt::Key_J).toInt(), false);
     setKeyMapping("ButtonB", settings.value("ButtonB", Qt::Key_K).toInt(), false);
-    setKeyMapping("ButtonX", settings.value("ButtonX", Qt::Key_I).toInt(), false);
-    setKeyMapping("ButtonY", settings.value("ButtonY", Qt::Key_L).toInt(), false);
-    setKeyMapping("ButtonUp", settings.value("ButtonUp", Qt::Key_W).toInt(), false);
-    setKeyMapping("ButtonDown", settings.value("ButtonDown", Qt::Key_S).toInt(), false);
-    setKeyMapping("ButtonLeft", settings.value("ButtonLeft", Qt::Key_A).toInt(), false);
-    setKeyMapping("ButtonRight", settings.value("ButtonRight", Qt::Key_D).toInt(), false);
+    setKeyMapping("ButtonX", settings.value("ButtonX", Qt::Key_U).toInt(), false);
+    setKeyMapping("ButtonY", settings.value("ButtonY", Qt::Key_I).toInt(), false);
+    setKeyMapping("ButtonUp", settings.value("ButtonUp", Qt::Key_Up).toInt(), false);
+    setKeyMapping("ButtonDown", settings.value("ButtonDown", Qt::Key_Down).toInt(), false);
+    setKeyMapping("ButtonLeft", settings.value("ButtonLeft", Qt::Key_Left).toInt(), false);
+    setKeyMapping("ButtonRight", settings.value("ButtonRight", Qt::Key_Right).toInt(), false);
     setKeyMapping("ButtonL", settings.value("ButtonL", Qt::Key_Q).toInt(), false);
     setKeyMapping("ButtonR", settings.value("ButtonR", Qt::Key_E).toInt(), false);
     setKeyMapping("ButtonZL", settings.value("ButtonZL", Qt::Key_1).toInt(), false);
@@ -208,4 +250,12 @@ void ConfigWindow::loadKeysFromSettings() {
     setKeyMapping("ButtonHome", settings.value("ButtonHome", Qt::Key_Home).toInt(), false);
     setKeyMapping("ButtonPower", settings.value("ButtonPower", 0).toInt(), false);
     setKeyMapping("ButtonPowerLong", settings.value("ButtonPowerLong", 0).toInt(), false);
+    setKeyMapping("CPadUp", settings.value("CPadUp", Qt::Key_W).toInt(), false);
+    setKeyMapping("CPadDown", settings.value("CPadDown", Qt::Key_S).toInt(), false);
+    setKeyMapping("CPadLeft", settings.value("CPadLeft", Qt::Key_A).toInt(), false);
+    setKeyMapping("CPadRight", settings.value("CPadRight", Qt::Key_D).toInt(), false);
+    setKeyMapping("CStickUp", settings.value("CStickUp", Qt::Key_T).toInt(), false);
+    setKeyMapping("CStickDown", settings.value("CStickDown", Qt::Key_G).toInt(), false);
+    setKeyMapping("CStickLeft", settings.value("CStickLeft", Qt::Key_F).toInt(), false);
+    setKeyMapping("CStickRight", settings.value("CStickRight", Qt::Key_H).toInt(), false);
 }

@@ -1,7 +1,7 @@
 #include "global.h"
 #include <math.h>
 #include "gpmanager.h"
-#include "configwindow.h" // Include header for ConfigWindow definition
+#include "configwindow.h"
 
 QSettings settings("TuxSH", "InputRedirectionClient-Qt");
 
@@ -19,7 +19,7 @@ int CPAD_BOUND;
 int CPP_BOUND;
 
 GamepadConfigurator *gpConfigurator;
-ConfigWindow *settingsConfig = nullptr; // NEW: Define the global pointer
+ConfigWindow *settingsConfig = nullptr;
 
 QString ipAddress;
 
@@ -33,6 +33,8 @@ int keyUp, keyDown, keyLeft, keyRight;
 int keyL, keyR, keyZL, keyZR;
 int keyStart, keySelect;
 int keyHome, keyPower, keyPowerLong;
+int keyCPadUp, keyCPadDown, keyCPadLeft, keyCPadRight;
+int keyCStickUp, keyCStickDown, keyCStickLeft, keyCStickRight;
 QSet<int> pressedKeys;
 
 void loadKeysFromSettingsIntoGlobals() {
@@ -49,12 +51,12 @@ void loadKeysFromSettingsIntoGlobals() {
 
     keyA = settings.value("ButtonA", Qt::Key_J).toInt();
     keyB = settings.value("ButtonB", Qt::Key_K).toInt();
-    keyX = settings.value("ButtonX", Qt::Key_I).toInt();
-    keyY = settings.value("ButtonY", Qt::Key_L).toInt();
-    keyUp = settings.value("ButtonUp", Qt::Key_W).toInt();
-    keyDown = settings.value("ButtonDown", Qt::Key_S).toInt();
-    keyLeft = settings.value("ButtonLeft", Qt::Key_A).toInt();
-    keyRight = settings.value("ButtonRight", Qt::Key_D).toInt();
+    keyX = settings.value("ButtonX", Qt::Key_U).toInt();
+    keyY = settings.value("ButtonY", Qt::Key_I).toInt();
+    keyUp = settings.value("ButtonUp", Qt::Key_Up).toInt();
+    keyDown = settings.value("ButtonDown", Qt::Key_Down).toInt();
+    keyLeft = settings.value("ButtonLeft", Qt::Key_Left).toInt();
+    keyRight = settings.value("ButtonRight", Qt::Key_Right).toInt();
     keyL = settings.value("ButtonL", Qt::Key_Q).toInt();
     keyR = settings.value("ButtonR", Qt::Key_E).toInt();
     keyZL = settings.value("ButtonZL", Qt::Key_1).toInt();
@@ -64,10 +66,21 @@ void loadKeysFromSettingsIntoGlobals() {
     keyHome = settings.value("ButtonHome", Qt::Key_Home).toInt();
     keyPower = settings.value("ButtonPower", 0).toInt();
     keyPowerLong = settings.value("ButtonPowerLong", 0).toInt();
+
+    keyCPadUp = settings.value("CPadUp", Qt::Key_W).toInt();
+    keyCPadDown = settings.value("CPadDown", Qt::Key_S).toInt();
+    keyCPadLeft = settings.value("CPadLeft", Qt::Key_A).toInt();
+    keyCPadRight = settings.value("CPadRight", Qt::Key_D).toInt();
+    keyCStickUp = settings.value("CStickUp", Qt::Key_T).toInt();
+    keyCStickDown = settings.value("CStickDown", Qt::Key_G).toInt();
+    keyCStickLeft = settings.value("CStickLeft", Qt::Key_F).toInt();
+    keyCStickRight = settings.value("CStickRight", Qt::Key_H).toInt();
 }
 
 void Worker::sendFrame(void)
 {
+    // --- Digital Button State (D-Pad, Face Buttons, etc.) ---
+    // This is recalculated every frame, which is the correct "stateless" approach.
     u32 hidPad = 0xFFF;
     if (pressedKeys.contains(keyA))       hidPad &= ~(1 << 0);
     if (pressedKeys.contains(keyB))       hidPad &= ~(1 << 1);
@@ -86,10 +99,8 @@ void Worker::sendFrame(void)
     if (pressedKeys.contains(keyZR))      irButtonsState |= (1 << 1);
     if (pressedKeys.contains(keyZL))      irButtonsState |= (1 << 2);
 
+    // --- Touch Screen State ---
     u32 touchScreenState = 0x2000000;
-    u32 circlePadState = 0x7ff7ff;
-    u32 cppState = 0x80800081;
-
     if(touchScreenPressed)
     {
         u32 x = (u32)(0xfff * std::min(std::max(0, touchScreenPosition.x()), touchScreenSize.width())) / touchScreenSize.width();
@@ -97,9 +108,50 @@ void Worker::sendFrame(void)
         touchScreenState = (1 << 24) | (y << 12) | x;
     }
 
-    MyAxis lAxis = btnSettings.isShouldSwapStick() ? rightAxis : leftAxis;
-    MyAxis rAxis = btnSettings.isShouldSwapStick() ? leftAxis : rightAxis;
+    // --- MODIFIED: Analog Stick Final Value Calculation ---
+    // This section now correctly determines the final analog values for THIS frame.
+    MyAxis finalLeftAxis = worker.getLeftAxis();
+    MyAxis finalRightAxis = worker.getRightAxis();
 
+    // 1. Calculate keyboard's contribution to analog state for this frame.
+    double kb_lx = 0.0, kb_ly = 0.0;
+    if (pressedKeys.contains(keyCPadUp))    kb_ly += 1.0;
+    if (pressedKeys.contains(keyCPadDown))  kb_ly -= 1.0;
+    if (pressedKeys.contains(keyCPadLeft))  kb_lx -= 1.0;
+    if (pressedKeys.contains(keyCPadRight)) kb_lx += 1.0;
+
+    double magnitude_l = sqrt(kb_lx * kb_lx + kb_ly * kb_ly);
+    if (magnitude_l > 1.0) {
+        kb_lx /= magnitude_l;
+        kb_ly /= magnitude_l;
+    }
+
+    double kb_rx = 0.0, kb_ry = 0.0;
+    if (pressedKeys.contains(keyCStickUp))    kb_ry += 1.0;
+    if (pressedKeys.contains(keyCStickDown))  kb_ry -= 1.0;
+    if (pressedKeys.contains(keyCStickLeft))  kb_rx -= 1.0;
+    if (pressedKeys.contains(keyCStickRight)) kb_rx += 1.0;
+
+    double magnitude_r = sqrt(kb_rx * kb_rx + kb_ry * kb_ry);
+    if (magnitude_r > 1.0) {
+        kb_rx /= magnitude_r;
+        kb_ry /= magnitude_r;
+    }
+
+    // 2. If keyboard is providing analog input, it overrides the gamepad.
+    if (kb_lx != 0.0 || kb_ly != 0.0) {
+        finalLeftAxis = {kb_lx, kb_ly};
+    }
+    if (kb_rx != 0.0 || kb_ry != 0.0) {
+        finalRightAxis = {kb_rx, kb_ry};
+    }
+    // --- End of Modified Section ---
+
+    // Apply stick swapping to the final calculated values
+    MyAxis lAxis = btnSettings.isShouldSwapStick() ? finalRightAxis : finalLeftAxis;
+    MyAxis rAxis = btnSettings.isShouldSwapStick() ? finalLeftAxis : finalRightAxis;
+
+    u32 circlePadState = 0x7ff7ff;
     if(lAxis.x != 0.0 || lAxis.y != 0.0)
     {
           u32 x = (u32)(lAxis.x * CPAD_BOUND + 0x800);
@@ -109,6 +161,7 @@ void Worker::sendFrame(void)
           circlePadState = (y << 12) | x;
     }
 
+    u32 cppState = 0x80800081;
     if((rAxis.x != 0.0 || rAxis.y != 0.0 || irButtonsState != 0) && !btnSettings.isCStickDisabled())
     {
           u32 x = (u32)(M_SQRT1_2 * (rAxis.x + rAxis.y * yAxisMultiplierCpp) * CPP_BOUND + 0x80);
@@ -118,6 +171,7 @@ void Worker::sendFrame(void)
           cppState = (y << 24) | (x << 16) | (irButtonsState << 8) | 0x81;
     }
 
+    // --- Packet Assembly (Unchanged) ---
     QByteArray ba(20, 0);
     qToLittleEndian(hidPad, (uchar *)ba.data());
     qToLittleEndian(touchScreenState, (uchar *)ba.data() + 4);

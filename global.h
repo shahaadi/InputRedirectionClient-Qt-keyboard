@@ -64,7 +64,7 @@ extern QString ipAddress;
 extern bool timerEnabled;
 
 extern GamepadConfigurator *gpConfigurator;
-extern ConfigWindow *settingsConfig; // NEW: Made this pointer global
+extern ConfigWindow *settingsConfig;
 
 extern bool touchScreenPressed;
 extern QSize touchScreenSize;
@@ -73,10 +73,13 @@ extern double tsRatio;
 
 // --- Keyboard mapping variables ---
 extern int keyA, keyB, keyX, keyY;
-extern int keyUp, keyDown, keyLeft, keyRight;
+extern int keyUp, keyDown, keyLeft, keyRight; // D-Pad
 extern int keyL, keyR, keyZL, keyZR;
 extern int keyStart, keySelect;
 extern int keyHome, keyPower, keyPowerLong;
+// NEW: Keybinds for analog stick directions
+extern int keyCPadUp, keyCPadDown, keyCPadLeft, keyCPadRight;
+extern int keyCStickUp, keyCStickDown, keyCStickLeft, keyCStickRight;
 extern QSet<int> pressedKeys;
 
 void loadKeysFromSettingsIntoGlobals();

@@ -6,27 +6,37 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QKeyEvent>
+#include <QScrollArea> // NEW: Include for scroll area
 
 class ConfigWindow : public QDialog
 {
     Q_OBJECT
 
 private:
-    QGridLayout *layout;
+    // NEW: Widgets for the scrollable area
+    QScrollArea *scrollArea;
+    QWidget *scrollAreaWidgetContents;
+
+    // The layout for the content inside the scroll area
+    QVBoxLayout *mainLayout;
 
     // Labels to show the currently mapped key
     QLabel      *lblKeyA, *lblKeyB, *lblKeyX, *lblKeyY,
                 *lblKeyL, *lblKeyR, *lblKeyUp, *lblKeyDown,
                 *lblKeyLeft, *lblKeyRight, *lblKeyStart, *lblKeySelect,
                 *lblKeyZL, *lblKeyZR, *lblKeyHome, *lblKeyPower,
-                *lblKeyPowerLong;
+                *lblKeyPowerLong,
+                *lblKeyCPadUp, *lblKeyCPadDown, *lblKeyCPadLeft, *lblKeyCPadRight,
+                *lblKeyCStickUp, *lblKeyCStickDown, *lblKeyCStickLeft, *lblKeyCStickRight;
 
     // Buttons to initiate remapping
     QPushButton *btnMapA, *btnMapB, *btnMapX, *btnMapY,
                 *btnMapL, *btnMapR, *btnMapUp, *btnMapDown,
                 *btnMapLeft, *btnMapRight, *btnMapStart, *btnMapSelect,
                 *btnMapZL, *btnMapZR, *btnMapHome, *btnMapPower,
-                *btnMapPowerLong;
+                *btnMapPowerLong,
+                *btnMapCPadUp, *btnMapCPadDown, *btnMapCPadLeft, *btnMapCPadRight,
+                *btnMapCStickUp, *btnMapCStickDown, *btnMapCStickLeft, *btnMapCStickRight;
 
     QPushButton *saveButton;
 
@@ -46,7 +56,6 @@ private:
     void setKeyMapping(const QString& buttonName, int key, bool saveSetting = true);
 
 protected:
-    // Override keyPressEvent to capture the key
     void keyPressEvent(QKeyEvent *event) override;
     void showEvent(QShowEvent* event) override;
 
